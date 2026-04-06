@@ -75,7 +75,7 @@
 % título alumno, titor y curso académico                                      %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\title{Transcripción Automática de Fechas con Whisper}
+\title{VPC Laboratorios: Gender Recognition, Car Model identification \& Attention Visualization}
 \author{Gómez Corral, Miquel}
 % \tutor{No}
 % \curs{MUIARFID}
@@ -88,13 +88,13 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \keywords{
-    Traducción de textos; español; esperanto; Transformers; LLMs
+    Gender Recognition; Car Model Identification; Attention Visualization; Transformers; Convolutional Neural Networks
 } % Paraules clau 
 {
-   Traducción de textos; 
+   Gender Recognition; Car Model Identification; Attention Visualization; Transformers; Convolutional Neural Networks
 } % Palabras clave
 {
-    Text clasification.
+   Gender Recognition; Car Model Identification; Attention Visualization; Transformers; Convolutional Neural Networks
 } % Key words
 
 
@@ -104,7 +104,7 @@
 %                                                                             %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\begin{document} 
+\begin{document}
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -134,233 +134,143 @@
 \mainmatter
 
 \chapter{Introducción}
-Este trabajo aborda el uso de modelos basados en transformers para la transcripción automática de fechas en formato textual. El modelo base a partir del cual se han construido las arquitecturas es Whisper, un modelo de reconocimiento automático del habla. 
+En esta memoria se presentan los trabajos seleccionados para la asignatura de Visión por Computador: Gender Recognition, Car Model Identification y Attention Visualization.
 
-Todo el código relacionado con la implementación del modelo, ha sido provisto como material de la asignatura. El trabajo se ha basado en hacer uso de este a partir de modificaciones a nivel de preprocesamiento, tokenización, entrenamiento y evaluación.
+Se presentan los pasos que se han seguido para llegar a ellos y los resultados obtenidos en cada uno de los ejercicios.
 
 \subsubsection{Hardware utilizado}
 Los experimentos se han realizado en mi máquina personal: GPU NVIDIA RTX 5070 (12 GB VRAM), procesador AMD Ryzen 9 9000X, 64 GB de RAM y Ubuntu 24.04 LTS.
 
 Todos los modelos han podido ser entrenados y evaluados sin problemas. 
 
-\section{Cambios principales}
-Para facilitar el uso del código base, se han realizado una serie de modificaciones.
+\section{Código entregado}
+Se han entregado 3 notebooks de Jupyter, cada uno correspondiente a un ejercicio. Estos se encuentra en la carpeta \texttt{/notebooks} junto al resto del repositorio con el código necesario para ejecutar cada uno de los ejercicios.
 
 \begin{itemize}
-  \item En los datasets en inglés, se ha encontrado la que frase \texttt{'tuesday thank you.'} aparece siempre con el punto al final. Por eliminar redundancias y mejorar la calidad de los datos, se ha decidido eliminar todos los signos de puntuación en el preprocesamiento.
-  \item Se han 'parametrizado' los principales elementos del código como las rutas, los tokens especiales (PAD, SOS, EOS) o algunos parámetros para facilitar cambios entre los ejercicios
+  \item \texttt{gender\_prediction.ipynb}: Ejercicio 1 predicción de género.
+  \item \texttt{car\_model\_identification.ipynb}: Ejercicio 2 identificación de modelos de coches.
+  \item \texttt{attention\_visualization.ipynb}: Ejercicio 3 visualización de atención.
 \end{itemize}
 
-\section{Notebooks entregados}
-Se han entregados 4 notebooks. A continuación la lista de los nombres con una breve descripción del contenido de cada uno.
-\begin{itemize}
-  \item \texttt{ejercicio-1-es.ipynb}: Ejercicio 1 en español.
-  \item \texttt{ejercicio-1-en.ipynb}: Ejercicio 1 en inglés.
-  \item \texttt{ejercicio-2.ipynb}: Ejercicio 2 (multilingüe con instrucciones).
-  \item \texttt{ejercicio-2-extra.ipynb}: Ejercicio 2 con implementación Top-K y Top-P en inferencia.
-  \item \texttt{ejercicio-3.ipynb}: Ejercicio 3 (llamada a funciones).
-\end{itemize}
+ El código asociado a esto ejercicios se puede encontrar en \texttt{/app} repartidos el sus correspondientes subcarpetas. El punto de acceso a estos es el archivo \texttt{main.py} que se encarga de cargar los modelos y ejecutar los experimentos necesarios para cada ejercicio.
 
+ Está auto documentado y se puede usar siguiendo las instrucciones del README para instalar las dependencias y ejecutar cada uno de los ejercicios.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                        Notebooks base                                     %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \chapter{Ejercicios}
-\section{Ejercicio 1: Modelos monolingües}
-En este ejercicio se ha creado la estructura principal de los Notebooks seguida por el resto de ejercicios.
+\section{Ejercicio 1: Gender Recognition}
 
-Como se ha mencionado, se han parametrizado las principales variables del código. Se ha detectado el problema con los signos de puntuación en inglés y se ha estructurado todo el procesamiento como se indica en el ejercicio.
+Para realizar esta tarea, se ha usado como referencia el paper adjunto en el enunciado, ha sido de gran ayuda. 
 
-A la hora de entrenar los modelos, parecía que el modelo en español necesitamos algunos epochs más para entrenar. Tras 15 epochs para el modelo en español y 10 para el modelo en inglés, se han obtenido los siguientes resultados:
+Ya que la tarea se dividía en dos objetivos, se ha intentado conseguir primero el score de $\geq 98\%$ accuracy en validación, para luego reducir el tamaño del modelo y conseguir el objetivo de $95\%$ accuracy con menos de 100k parámetros.
 
-\begin{table}[H]
-\centering
-\begin{tabular}{lr}
-	\toprule
-	\textbf{Idioma} & \textbf{WER \%} \\
-	\midrule
-	Español & 1.36 \\
-	Inglés & 1.21 \\
-	\bottomrule
-\end{tabular}
-\caption{Resultados en transcripción automática de fechas monolingüe: WER Inglés y Español.}
-\label{tab:wer_ej1}
-\end{table}
+\subsection{Datos}
+Los datos provistos venían en un formato muy cómodo de numpy y ya divididos en entrenamiento y test (test = validación). Se han cargado y se han convertido en un dataset de PyTorch para facilitar su uso en el entrenamiento de los modelos y poder aplicar técnicas de data augmentation.
 
-\section{Ejercicio 2: Modelo multilingüe}
-Partiendo del código del ejercicio 1, se ha implementado un modelo multilingüe que recibe instrucciones para identificar el idioma de la entrada. De nuevo, se han limpiado los signos de puntuación en inglés, pero ahora, se han juntado los datasets de ambos idiomas para crear un dataset combinado con todas las combinaciones: Transcripción en español, Transcripción en inglés, Traducción del Inglés al Español y Traducción del Español al Inglés.
+\subsection{Métodos probados}
+Con una pipeline de entrenamiento estándar, se han probado diferentes arquitecturas de CNN, con diferentes hiperparámetros y técnicas de regularización. 
 
-Se han añadido los tokens especiales para identificar el idioma de la entrada y salida, y se ha hecho que el dataset de entrenamiento ponga antes de cada frase el token correspondiente a la instrucción. Luego, para la generación, se añade el token de instrucción antes de entrar al bucle, justo después del token SOS.
+Siguiendo el paper de referencia y sus nombres, se ha iniciado con una CNN del formato '\textit{I}', con \texttt{torch.optim.SGD}, \texttt{torch.nn.CrossEntropyLoss} y sin técnicas de regularización. Se ha modificado ligeramente para quitar la capa de \texttt{AdaptiveAvgPool2d} a (8,8) que añadían en el paper. Esta causaba que el entrenamiento fuera inestable y dependía de factores como la semilla para entrenar bien.
 
-Con esto, se han obtenido los siguientes resultados tras 10 epochs de entrenamiento:
-\begin{table}[H]
-\centering
-\begin{tabular}{lr}
-	\toprule
-	\textbf{Idioma} & \textbf{WER \%} \\
-	\midrule
-	Bilingüe inglés y español & 4.20 \\
-	\bottomrule
-\end{tabular}
-\caption{Resultados en transcripción automática de fechas monolingüe: WER Inglés y Español.}
-\label{tab:wer_ej1}
-\end{table}
+Esto nos dejaba con valores 'bajos' de accuracy, de un 93\%, por lo que se han ido probando las siguientes técnicas de regularización:
 
-Vemos que el rendimiento empeora de forma significative respecto a los modelos monolingües. Esto es algo esperado, ya que el modleo tiene que aprender a hacer 4 tareas diferentes (aun que parecidas) en lugar de una. Aún así el resultado es muy bueno.
-
-\section{Ejercicio 3: Llamadas a funciones}
-En este ejercicio de nuevo, parte del notebook creado en el ejercicio 1, y se ha hecho el mismo preprocesamiento que en los ejercicios anteriores.
-
-Ahora, el tokenizador tiene más entrada, ya que tiene que manejar las palabras y las llamadas a funciones. Ya que la cantidad de opciones para llamar a funciones no era muy grande, se ha decidido que cada llamada a función, con su parámetro, sea un token único. Esto nos deja con tokens como:
-
-\noindent
-\begin{minipage}[t]{0.48\textwidth}
-\textbf{next\_day:}
-\begin{itemize}[topsep=0pt]
-  \item "next\_day('friday')"
-  \item "next\_day('monday')"
-  \item "next\_day('thursday')"
-  \item "next\_day('tuesday')"
-  \item "next\_day('wednesday')"
+\begin{itemize}
+  \item Usar AdamW en vez de SGD.
+  \item Usar label smoothing con $\epsilon = 0.1$.
+  \item Usar data augmentation con técnicas de RandomRotation, RandomHorizontalFlip, RandomGrayscale, RandomResizedCrop, RandomErasing, GaussianNoise y ColorJitter
 \end{itemize}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
-\textbf{relative\_day:}
-\begin{itemize}[topsep=0pt]
-  \item "relative\_day(+1)"
-  \item "relative\_day(+2)"
-  \item "relative\_day(+3)"
-\end{itemize}
-\end{minipage}
 
-Luego, se ha hecho que el modelo aprenda a dar como salida el texto y estos tokens. Con el modelo entrenado, se han procesado sus predicciones para ejecutar las llamadas a funciones y obtener la fecha final. 
+La mayoría de estas han terminando mejorando el accuracy, aun que algunas como el ColoJitter o el RandomResizedCrop solo ralentizaban el entrenamiento, sin llegar a dar una mejora al modelo.
 
-Los resultados son muy buenos, equivocándose unicamente en 10 de 1000 ejemplos. or lo tanto, el error medio es de un 1.0 \%.
-
-\begin{table}[H]
-\centering
-\begin{tabular}{lr}
-	\toprule
-	\textbf{idioma} & \textbf{Error \%} \\
-	\midrule
-	Bilingüe Funciones & 1.00 \\
-	\bottomrule
-\end{tabular}
-\caption{Resultados en transcripción automática de fechas monolingüe: WER Inglés y Español.}
-\label{tab:wer_ej1}
-\end{table}
-
-
-\section{Ejercicio Extra: Top-K y Top-P}
-Como ejercicios extra, se ha decidido hacer los dos primeros: implemntar Top-K y Top-P en la generación, y hacer un modelo multilingüe con instrucciones.
-
-Se ha partido del ejercicios dos para hacer estas modificaciones, ya que era el que más margen de mejora presentaba. Se ha vuelto a entrenar el modelo durante 10 epochs para tener una línea base con decodificación greedy, y se ha conseguido un WER de 3.87 \%, ligeramente mejor al original.
-
-La implementación estas estrategias de decodificación, pasa por cambiar el código del generate. 
-
-\begin{enumerate}
-  \item \textbf{Top-K:} Se parte de los logits, se ordenan de mayor a menor y se mantienen los K primeros. El resto de logits se descartan y se hace una softmax con los K logits restantes para obtener las probabilidades. Finalmente, se hace el muestreo a partir de estas probabilidades.
-  \item \textbf{Top-P:} Se parte de los logits, se aplica softmax para obtener las probabilidades, se ordenan de mayor a menor y se calcula la suma acumulada. Se mantienen los tokens hasta que la suma acumulada supere el umbral P. El resto de logits se ponen descartan y se hace una softmax y muestreo como en el caso anterior.
-\end{enumerate}
-
-Para ver el impacto de estas técnicas, se ha probado a decodificar el test con diferentes valores de K y P. La línea base con decodificación greedy obtuvo un WER de 3.87\%. Los resultados con Top-K y Top-P son los siguientes:
-
-\begin{table}[H]
-\centering
-\begin{minipage}[t]{0.48\textwidth}
-\centering
-\begin{tabular}{lr}
-	\toprule
-	\textbf{K} & \textbf{WER \%} \\
-	\midrule
-	1 & 3.87 \\
-	2 & 4.53 \\
-	3 & 4.23 \\
-	4 & 4.44 \\
-	5 & 4.60 \\
-	6 & 4.72 \\
-	7 & 4.39 \\
-	8 & 4.79 \\
-	9 & 4.23 \\
-	10 & 4.72 \\
-	\bottomrule
-\end{tabular}
-\caption{Resultados con Top-K.}
-\label{tab:topk}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.48\textwidth}
-\centering
-\begin{tabular}{lr}
-	\toprule
-	\textbf{P (\%)} & \textbf{WER \%} \\
-	\midrule
-	10.0 & 3.87 \\
-	20.0 & 3.87 \\
-	30.0 & 4.51 \\
-	40.0 & 10.51 \\
-	50.0 & 34.32 \\
-	60.0 & 540.25 \\
-	70.0 & 589.45 \\
-	80.0 & 576.49 \\
-	90.0 & 538.15 \\
-	100.0 & 4.86 \\
-	\bottomrule
-\end{tabular}
-\caption{Resultados con Top-P.}
-\label{tab:topp}
-\end{minipage}
-\end{table}
-
-
-
-Cómo vemos. la estrategia ganadora sigue siendo la greedy. El Top-k=1 y top-p con poca masa de probabilidad se comportan de la misma forma que el greedy porque al menos ha de elegir un token, pero luego al aumentar la massa se vuelve un método nefasto. El top-k muestra más consistencia a lo largo de las ejecuciones, aun que no mejora al método greedy.
-
-La razón por la que esto puede ser así, es el simple hecho de que no hay tantos tokens como para que estrategias de este estilo valgan la pena. El modelo no tiende a confundir tokens (darles logits similares), por lo que usando la estrategia por defecto se consiguen los mejores resultados.
-
-
-\section{Resumen resultados}
-A continuación se muestran los resultados WER obtenidos en los diferentes ejercicios realizados:
+Con esto, se ha llegado a superar el $96.0\% - 96.5\%$ de accuracy en validación, pero aún estaba lejos del objetivo de 98\%. En el paper, se usan varias versione de la misma CNN pero entrenadas con seeds y usadas como un ensemble. Sin embargo, se ha querido implementar una mejora más al proceso antes de llegar a esto.
 
 \begin{figure}[H]
-\centering
-\begin{tikzpicture}
-\begin{axis}[
-    ybar,
-    bar width=0.6cm,
-    width=\textwidth,
-    height=7.5cm,
-    ylabel={WER (\%)},
-    symbolic x coords={Español, Inglés, Bilingüe, Funciones, Greedy, Top-K=3, Top-P=30},
-    xtick=data,
-    x tick label style={font=\small},
-    ymin=0,
-    ymax=5,
-    ymajorgrids=true,
-    grid style=dashed,
-    enlarge x limits=0.15,
-    nodes near coords,
-    nodes near coords align={vertical},
-    every node near coord/.append style={font=\small},
-]
-
-% WER scores
-\addplot[fill=blue!60] coordinates {
-    (Español, 1.36)
-    (Inglés, 1.21)
-    (Bilingüe, 4.20)
-    (Funciones, 1.0)
-    (Greedy, 3.87)
-    (Top-K=3, 4.23)
-    (Top-P=30, 4.51)
-};
-
-\end{axis}
-\end{tikzpicture}
-\caption{Comparación de WER obtenido en cada ejercicio. Español e Inglés corresponden al Ejercicio 1, Bilingüe al Ejercicio 2, Funciones al Ejercicio 3, y Greedy Extra al ejercicio extra con decodificación greedy.}
-\label{fig:resultados_finales}
+  \centering
+  \includegraphics[width=0.85\textwidth]{images/beforebest.png} 
+  \caption{Muestras fallidias por el modelo antes de aplicar ensemble}
+  \label{fig:gender_samples}
 \end{figure}
+
+Si nos fijamos, a parte de no saber si Michael Jackson es hombre o mujer, el modelo también tiene problemas con personas con gafas, gorras y en general con aquellas a las que no se les ve el pelo (no todos son así claro). Esto nos lleva a pensar que depende mucho de estas características para hacer la predicción, y que si no las tiene, el modelo se confunde.
+
+Por eso, se ha implementado un aumento de datos específico que, a partir del concepto del RandomErasing, pretende centrarse en zonas específicas de la imagen, en concreto en la zona del pelo. 
+
+Con este aumento, se consigue pasar de un 96.5\% a un 97.1\% de accuracy en validación. Aún así, no se ha conseguido llegar al 98\% de accuracy, por lo que ha decidido probar a ajustar el umbral de predicción y hacer inferencia usado cada imagen y su versión invertida horizontalmente. Con esto alcanzamos un 97.3\% de accuracy, solo usando este modelo.
+
+Ahora sí, using las indicaciones del paper, se ha implementado un ensemble de 3 modelos con diferentes seeds, AdamW, label smoothing y los data augmentation que han demostrado funcionar incluyendo la personalizada. Así se ha conseguido superar el 98\% de accuracy en validación, llegando a un 98.2\%.
+
+\subsection{Modelo pequeño}
+Para conseguir el objetivo de un modelo con menos de 100k parámetros y un accuracy de al menos 95\%, se ha optado por usar exactamente la misma arquitectura que el modelo grande, pero esta vez usado un \texttt{AdaptiveAvgPool2d((6, 6))} como entrada a la parte Densa del modelo, 61 canales en vez de 64 en la última capa convolucional, lo que a su vez reduce el número de neuronas de la primera capa densa.
+
+Esto hace que el número de parámetros se reduzca a 99.0K, y con la buena pipeline de entrenamiento, se ha conseguido fácilmente un accuracy en validación se mantenga por encima del 95\%, llegando a un 96.8\%.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lr}
+	\toprule
+	\textbf{Técnica} & \textbf{Accuracy \%} \\
+	\midrule
+  Base sin \texttt{AdaptiveAvgPool2d} & 93.0 \\
+	Mejores técnicas & 96.5 \\
+  Aumento específico & 97.1 \\
+  Horizontal flipping & 97.3 \\
+  Todo + Ensemble & \textbf{98.2} \\
+	\midrule
+  CNN Pequeña sin ensemble & \textbf{96.8} \\
+	\bottomrule
+\end{tabular}
+\caption{Resultados de accuracy para diferentes técnicas aplicadas.}
+\label{tab:accuracy_ej1}
+\end{table}
+
+Como vemos, el tamaño del modelo no ha tenido tanta importancia a la hora de conseguir un buen accuracy y ha sido más la configuración del entrenamiento, los data augmentation y el buen uso del modelo en inferencia.
+
+
+\section{Ejercicio 2: Car Model Identification}
+Para esta tarea, partimos usado el código el ejercicio anterior, toda la pipenline de entrenamiento y data augmentation se ha mantenido, aunque se han ajustado algunos hiperparámetros como el learning rate y se ha eliminado el aumento de datos personalizado.
+
+Ahora la diferencia será que no solo usamos una CNN, sino dos y ya entrenadas. Usaremos una ResNet-50 y una VGG-16 preentrenadas en ImageNet tanto para crear una red bilinear con ambas como para solo usar una y crear redes siamesas.
+
+\subsection{Datos}
+De forma similar al ejercicio anterior, los datos venían en formato numpy y ya divididos en entrenamiento y test (validación). Se han cargado y convertido a un dataset de PyTorch para facilitar su uso en el entrenamiento de los modelos.
+
+Ahora, estás imágenes tienen un tamaño de 250x250. Por lo tamaños de las salidas de las CNNs usadas, se han reescalado a 224x224 para que su último mapa convolucional devuelva una salida de 7x7 (ambas), que es lo que se necesita para la parte bilinear del modelo.
+
+\subsection{Entrenamiento}
+Como ya sabemos, para entrenar una red bilinear usando dos CNNs ya entrenadas, unicamente tememos que combinar las salidas de ambas CNNs, hacer un producto externo entre todos los canales de las salidas. Este tensor se proyecta a un vector y se normaliza según el tamaño del mapa convolucional, que en este caso es de 7x7, y se le aplica una raíz cuadrada seguida de una normalización L2. 
+
+Finalmente, este vector tendrá un tamaño equivalente a multiplicar los canales de ambas redes (por ejemplo, $2048 \times 512 = 1048576$ características si cruzamos la ResNet y la VGG), y se pasa a una sola capa lineal que da 20 salidas, una por cada clase.
+
+Para hacer efectivo el entrenamiento de esta red bilinear, se congelan las dos redes convolucionales, y se entrena solo la capa lineal final hasta que se estabilice. Luego, se reduce el learning rate en dos ordenes de magnitud y se descongelan las CNNs para hacer un fine-tuning de toda la red.
+
+\subsection{Técnicas probadas}
+Con el mismo proceso de entrenamiento que el ejercicio anterior, no se ha tenido que cambiar apenas nada y se han podido probado los tres posibles enfoques para esta tarea sin mucha dificultad: Una Bilinear con ResNet-50 y VGG-16, una red siamesa con ResNet-50 y otra red siamesa con VGG-16. 
+
+Un detalle importante: para hacer las redes siamesas no se cargan dos modelos idénticos en memoria (lo cual sería un desperdicio enorme de recursos). Simplemente se carga la red una vez, y para sacar las características se hace el producto externo de su salida consigo misma. Luego el backpropagation se encarga de actualizar los pesos de la red para que aprenda a sacar características que sean útiles para esta tarea.
+
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lrr}
+	\toprule
+	\textbf{Técnica} & \textbf{Accuracy\% Fase 1} & \textbf{Accuracy\% Fase 2} \\
+	\midrule
+  VGG-16 siamesa & 65.94 & 68.11 \\
+  ResNet-50 siamesa & 49.36 & 67.73 \\
+  Bilinear VGG-16 y ResNet-50 & 65.94 & \textbf{73.72} \\
+	\bottomrule
+\end{tabular}
+\caption{Resultados de accuracy para diferentes redes}
+\label{tab:accuracy_ej1}
+\end{table}
+
+Tras el entrenamiento de solo la última capa (Fase 1), se obtenían unos resultados de accuracy bastante buenos para la VGG y la mixta, rondando el 65.94\%, mientras que la ResNet sola arrancó más floja. Luego, tras descongelar las CNNs y hacer el fine-tuning (Fase 2), la precisión subió en todos los frentes, destacando la combinación Bilinear (VGG + ResNet) que alcanzó casi un 74\%.
+
+Como se puede observar, usar una sola CNN consigo misma da algo menos de accuracy que juntar dos distintas. Es lógico, ya que dos arquitecturas diferentes 'ven' cosas distintas en la imagen y se complementan mejor. Sin embargo, usar una sola red juega muy a favor de recudir el uso de memoria y potencia de cálculo, lo que lo convierte en un enfoque mucho más práctico y eficiente si vamos justos de recursos.
+
+\section{Ejercicio 3: Attention Visualization}
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                                             %
