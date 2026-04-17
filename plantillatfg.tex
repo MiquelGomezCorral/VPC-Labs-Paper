@@ -170,6 +170,9 @@ Ya que la tarea se dividía en dos objetivos, se ha intentado conseguir primero 
 Los datos provistos venían en un formato muy cómodo de numpy y ya divididos en entrenamiento y test (test = validación). Se han cargado y se han convertido en un dataset de PyTorch para facilitar su uso en el entrenamiento de los modelos y poder aplicar técnicas de data augmentation.
 
 \subsection{Métodos probados}
+
+En la tabla \ref{tab:accuracy_ej1} se aprecia un resumen de los resultados obtenidos con cada técnica probada. Parte por parte se desglosa en el siguiente apartado. 
+
 Con una pipeline de entrenamiento estándar, se han probado diferentes arquitecturas de CNN, con diferentes hiperparámetros y técnicas de regularización. 
 
 Siguiendo el paper de referencia y sus nombres, se ha iniciado con una CNN del formato '\textit{I}', con \texttt{torch.optim.SGD}, \texttt{torch.nn.CrossEntropyLoss} y sin técnicas de regularización. Se ha modificado ligeramente para quitar la capa de \texttt{AdaptiveAvgPool2d} a (8,8) que añadían en el paper. Esta causaba que el entrenamiento fuera inestable y dependía de factores como la semilla para entrenar bien.
@@ -195,11 +198,15 @@ Con esto, se ha llegado a superar el $96.0\% - 96.5\%$ de accuracy en validació
 
 Si nos fijamos, a parte de no saber si Michael Jackson es hombre o mujer, el modelo también tiene problemas con personas con gafas, gorras y en general con aquellas a las que no se les ve el pelo (no todos son así claro). Esto nos lleva a pensar que depende mucho de estas características para hacer la predicción, y que si no las tiene, el modelo se confunde.
 
-Por eso, se ha implementado un aumento de datos específico que, a partir del concepto del RandomErasing, pretende centrarse en zonas específicas de la imagen, en concreto en la zona del pelo. 
+Por eso, se ha implementado un \textbf{aumento de datos específico} que, a partir del concepto del RandomErasing, pretende centrarse en zonas específicas de la imagen, en concreto en la zona del pelo. 
 
 Con este aumento, se consigue pasar de un 96.5\% a un 97.1\% de accuracy en validación. Aún así, no se ha conseguido llegar al 98\% de accuracy, por lo que ha decidido probar a ajustar el umbral de predicción y hacer inferencia usado cada imagen y su versión invertida horizontalmente. Con esto alcanzamos un 97.3\% de accuracy, solo usando este modelo.
 
-Ahora sí, using las indicaciones del paper, se ha implementado un ensemble de 3 modelos con diferentes seeds, AdamW, label smoothing y los data augmentation que han demostrado funcionar incluyendo la personalizada. Así se ha conseguido superar el 98\% de accuracy en validación, llegando a un 98.2\%.
+Luego, siguiendo las indicaciones del paper, se ha implementado un ensemble de 3 modelos con diferentes seeds, AdamW, label smoothing y los data augmentation que han demostrado funcionar incluyendo la personalizada, subiendo un pelín el accuracy a 97.5\%. 
+
+Al ver que se llegaba a un tope, se ha cambiado directamente la arquitectura del modelo. La vista el paper llega a un tope con el seput actual, por lo que se ha usado una Resnet con 3 skipconnections y dos dos convoluciones por bloque.
+
+Con esta nueva arquitectura, se ha conseguido llegar a un 98.4\% de accuracy en validación, y con el ensemble de 3 modelos, se ha llegado a un 98.6\%, superando el objetivo marcado. Tras algunas pruebas se ha superado esta marca añadiendo otra capa de convolución a cada bloque, llegando a un 98.6\% con un solo modelo y a un 98.8\% con un ensemble, siendo este el mejor resultado obtenido.
 
 \subsection{Modelo pequeño}
 Para conseguir el objetivo de un modelo con menos de 100k parámetros y un accuracy de al menos 95\%, se ha optado por usar exactamente la misma arquitectura que el modelo grande, pero esta vez usado un \texttt{AdaptiveAvgPool2d((6, 6))} como entrada a la parte Densa del modelo, 61 canales en vez de 64 en la última capa convolucional, lo que a su vez reduce el número de neuronas de la primera capa densa.
@@ -208,17 +215,23 @@ Esto hace que el número de parámetros se reduzca a 99.0K, y con la buena pipel
 
 \begin{table}[H]
 \centering
-\begin{tabular}{lr}
+\begin{tabular}{llr}
 	\toprule
-	\textbf{Técnica} & \textbf{Accuracy \%} \\
+	\textbf{Modelo} & \textbf{Técnica} & \textbf{Accuracy \%} \\
 	\midrule
-  Base sin \texttt{AdaptiveAvgPool2d} & 93.0 \\
-	Mejores técnicas & 96.5 \\
-  Aumento específico & 97.1 \\
-  Horizontal flipping & 97.3 \\
-  Todo + Ensemble & \textbf{98.2} \\
+  Modelo I & Base sin \texttt{AdaptiveAvgPool2d} & 93.0 \\
+	& Mejores técnicas & 96.5 \\
+  & Aumento específico & 97.1 \\
+  & Horizontal flipping & 97.3 \\
+  & Todo + Ensemble & 97.6 \\
 	\midrule
-  CNN Pequeña sin ensemble & \textbf{96.8} \\
+  ResNet 1 & Todo & 98.2 \\
+  & Todo + Ensemble & 98.6 \\
+  ResNet 2 & Todo & 98.6 \\
+  & Todo + Ensemble & \textbf{98.8} \\
+	\midrule
+  Modelo I Pequeño & Todo & \textbf{96.8} \\
+  & Todo + Ensemble & 97.0 \\
 	\bottomrule
 \end{tabular}
 \caption{Resultados de accuracy para diferentes técnicas aplicadas.}
