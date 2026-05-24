@@ -193,7 +193,7 @@ Con esto, se ha llegado a superar el $96.0\% - 96.5\%$ de accuracy en validació
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.85\textwidth]{images/beforebest.png} 
-  \caption{Muestras fallidas por el modelo antes de aplicar ensemble}
+  \caption{Muestras fallidas por el modelo antes de aplicar ensemble y aumento específico.}
   \label{fig:gender_samples}
 \end{figure}
 
@@ -288,6 +288,229 @@ Como se puede observar, usar una sola CNN consigue algo menos de accuracy que ju
 
 \section{Ejercicio 3: Attention Visualization}
 
+% - Modelos: 'google/vit-base-patch16-224', 'vit_base_patch16_224'
+% - La attention se extrae de forma diferente según el modelo, cada uno tiene un arquítectura distinta, por lo que se han tenido que adaptar los métodos de extracción a cada modelo. 
+% - A partir de ahí sacamos con los mapas extraidos los plots son iguales
+% - Attenion rollot formulas
+% - Con ayuda de claude se implementa las visualizaciones: Mean por capa y max por capa general, luego, lo mismo por cabeza
+% - Todo se centra en el token CLS
+% - Rollout lo mismo con mean y max
+% - Por último, se ha implementado una visualización interactiva, donde al hacer click en un pixel de la imagen, se muestra la atención de ese pixel a lo largo de las capas y cabezas del modelo, para ver como va cambiando el foco de atención a lo largo del modelo de cada patch en vez del token de clasifiación.
+
+% luego por separado resultado y insights
+
+% - Se ven 20 imágenes, 2 de cada una de las 10 clases interesantes (listarlas)
+% - Clasifican todo bien (solo poner una linea)
+% - Con el rollout se ve como se fijan en partes importantes de la imagen: ruedas en el bus, apertura del volcan, alas de la mariposa, en el coral algo interesante se centra en el fondo xq es como que ve si está bajo del mar, en la gitarra en el abujero o en el pavo real en los patrones de las plumas...
+% - Los dos modelos muestran comportamientos casi identicos, con el modelo de google dando una 'atención más intepretable' y el otro más 'difusa', pero ambos se centran en las mismas zonas de la imagen, lo que demuestra que ambos modelos han aprendido a fijarse en las partes relevantes de la imagen para hacer su predicción. Ya que las del modelo do google son más 'limpias', se han usado estas para las visualizaciones, aunque las del otro modelo también se pueden encontrar en el notebook. Aquí comparación (guitar compartion guitar_google vs guitar_timm images on rollout)
+% - Luego por capas y cabeza, se ve muy bien como primero se este foco va cambiando a lo largo de las capas. ALgunas cabezas 'parecen no atender a nada' y otras se centran en partes muy concretas de la imagen, como por ejemplo una cabeza que se centra en las ruedas del bus, otra que se centra en el pico del ave, otra que se centra en el volcan... Es curioso ver como cada cabeza tiene un comportamiento completamente distinto y se centran en cosas distintas de la imagen, lo que demuestra la capacidad de atención de estos modelos.
+% - Las cabezas y capas que parecen no atender a nada, parece ser por que en esa imagen no hay nada relevante para ellas.
+% - La 2nd capa parece ser la que mejor atiende a los objetos de la imagen, mientras que las capas más profundas parecen ser más 'abstractas'
+
+% - Luego, si no fijamos en la visualización interactiva, se ve como cada patch va cambiando su atención a lo largo de las capas, y como al principio se centran en zonas muy cercanas a ellos mismos, por lo que el modelo ha aprendido 'cosas a nivel espacial' de donde están las cosas. a medida que avanzan las capas, se van fijando en zonas más amplias, lo que demuestra la capacidad de estos modelos para ir integrando información de distintas partes de la imagen a medida que avanzan las capas.
+
+%  Curiosidades:
+% - el volcan con un reflejo en el agua, el patch del reflejo se centra primero en sí mismo, según avanzan las capas, se va fijando en el volcan, lo que demuestra que el modelo ha aprendido a relacionar el reflejo con el objeto que lo produce, lo cual es bastante impresionante. (all images of volcano)
+% - En la mariposa, los patches de la flor se atienden entre ellos, casi segmentandola. Lo mismo con el café de la 'expreso', la zebra del fondo que sale en una de las imágenes (3 images on vertical of the zebra, on the second column three more of the flower)
+
+
+% - En el rollout por patch no parece haber mucha diferencia con el del CLS, lo que demuestra que el modelo no se centra solo en el token de clasificación, sino que cada patch también tiene su propia atención y va cambiando su foco a lo largo de las capas.
+
+
+\subsection{Métodos}
+
+Para este ejercicio se han usado dos modelos ViT (\textit{Vision Transformer}): \texttt{google/vit-base-patch16-224}, cargado desde HuggingFace mediante \texttt{transformers}, y \texttt{vit\_base\_patch16\_224}, cargado desde \texttt{timm}. Ambos son funcionalmente equivalentes: dividen la imagen de entrada en parches de $16 \times 16$ píxeles, lo que sobre una imagen de $224 \times 224$ produce una rejilla de $14 \times 14 = 196$ parches, más el token especial \texttt{[CLS]} usado para la clasificación. Esto da lugar a una secuencia de 197 tokens, y a matrices de atención de forma $(1, 12, 197, 197)$ por capa y modelo.
+
+La forma en que se extrae la atención difiere entre modelos. Con el modelo de Google, \texttt{ViTModel} expone directamente las matrices de atención de cada capa si se pasa \texttt{output\_attentions=True}. Con el modelo de \texttt{timm}, esto no está disponible directamente, por lo que se ha registrado un \textit{forward hook} sobre las capas \texttt{attn.qkv}, reconstruyendo manualmente la atención a partir de los tensores $Q$, $K$ y $V$. A partir de ahí, una vez extraídas las atenciones, el pipeline de visualización es idéntico para ambos modelos.
+
+La extracción se ha implementado a mano, luego con ayuda de Claude,tres tipos de visualización:
+
+\begin{itemize}
+  \item \textbf{Atención por capa:} para cada capa del modelo, se agrega la atención del token \texttt{CLS} sobre todos los parches, usando la media o el máximo entre las 12 cabezas. Se proyecta el vector de 196 valores resultante a una rejilla de $14 \times 14$ y se interpola bicúbicamente a $224 \times 224$ para una visualización más suave, superponiéndolo sobre la imagen original.
+
+  \item \textbf{Atención por cabeza:} en vez de agregar, se visualizan las 12 cabezas por separado para una capa dada, lo que permite ver qué parte de la imagen atiende cada cabeza de forma individual.
+
+  \item \textbf{Attention rollout:} propaga la atención a lo largo de todas las capas del modelo para estimar el flujo de información acumulado. Se calcula de forma recursiva como:
+
+  \begin{equation}
+    A_{\text{rollout}}^{l} = \left(A^{l} + I\right) \cdot A_{\text{rollout}}^{l-1}, \quad l > 1
+  \end{equation}
+  \begin{equation}
+    A_{\text{rollout}}^{1} = A^{1} + I
+  \end{equation}
+
+  donde $A^{l}$ es la matriz de atención agregada en la capa $l$ e $I$ es la identidad, añadida para modelar las conexiones residuales. La fila correspondiente al token de interés da el mapa de atención acumulado. Al igual que antes, se computa tanto con media como con máximo entre cabezas.
+\end{itemize}
+
+Por último, se ha implementado una \textbf{visualización interactiva} en el notebook \\ \texttt{attention\_visualization\_interactive.ipynb}: al hacer clic sobre un píxel de la imagen, se muestra la atención del parche correspondiente a ese píxel en vez de la del token \texttt{CLS}, permitiendo explorar cómo cada parche distribuye su atención a lo largo de las capas del modelo.
+
+\clearpage
+
+\subsection{Resultados y análisis}
+
+Se han visualizado 20 imágenes, 2 por cada una de las siguientes 10 clases: \textit{zebra}, \textit{dálmata}, \textit{mariposa monarca}, \textit{guitarra acústica}, \textit{autobús escolar}, \textit{volcán}, \textit{margarita}, \textit{pavo real}, \textit{coral cerebro} y \textit{cafetera espresso}. Todos los ejemplos son clasificados correctamente por ambos modelos.
+
+\subsubsection{Comparación entre modelos}
+
+Ambos modelos muestran un comportamiento prácticamente idéntico en cuanto a las zonas de la imagen a las que atienden. La diferencia principal es de calidad visual: el modelo de Google produce mapas de atención más limpios e interpretables, mientras que el de \texttt{timm} tiende a ser más difuso, como se puede apreciar en la Figura \ref{fig:guitar_comparison}. Dado que ambos se fijan en las mismas regiones relevantes, se ha optado por usar el modelo de Google para todas las visualizaciones presentadas en esta sección, aunque las del modelo \texttt{timm} también están disponibles en el notebook.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.75\textwidth}
+    \includegraphics[width=\textwidth]{images/guitar_google.png}
+    \caption{Modelo Google}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}[b]{0.75\textwidth}
+    \includegraphics[width=\textwidth]{images/guitar_timm.png}
+    \caption{Modelo timm}
+  \end{subfigure}
+  \caption{Attention rollout sobre la guitarra acústica. El modelo de Google produce una atención más limpia y concentrada, mientras que el de timm es más difuso, aunque ambos clasifican correctamente.}
+  \label{fig:guitar_comparison}
+\end{figure}
+
+\subsubsection{Attention rollout: zonas relevantes por clase}
+
+Con el rollout se aprecia con claridad que el modelo no atiende la imagen de forma uniforme, sino que concentra la atención en las partes semánticamente relevantes para cada clase. En el autobús escolar se destacan las ruedas y la carrocería, en el volcán la boca, en la mariposa las alas, en la guitarra el agujero de la caja de resonancia... Un caso especialmente curioso es el del coral cerebro: la atención se centra en el fondo de la imagen, lo cual tiene sentido dado que el fondo acuático es un indicador contextual muy fuerte de que se trata de un organismo marino.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.75\textwidth}
+    \includegraphics[width=\textwidth]{images/volcan_rollout.png}
+    \caption{Volcán rollout}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}[b]{0.75\textwidth}
+    \includegraphics[width=\textwidth]{images/peackock_rollout.png}
+    \caption{Pavo real rollout}
+  \end{subfigure}
+  \vfill
+  \begin{subfigure}[b]{0.75\textwidth}
+    \includegraphics[width=\textwidth]{images/coral1_rollout.png}
+    \caption{Coral rollout}
+  \end{subfigure}
+  \caption{Atención del token \texttt{CLS} en la capa 2 para distintas clases. Se puede observar cómo el modelo se centra en las partes más relevantes de cada imagen para su clasificación.}
+  \label{fig:layer2_examples}
+\end{figure}
+
+\subsubsection{Análisis por capas y cabezas}
+
+Al visualizar la atención capa a capa, se observa que la capa 2 es consistentemente la que produce mapas más interpretables y focalizados sobre el objeto principal (Figura \ref{fig:layer2_examples}), mientras que las capas más profundas tienden a mostrar patrones más abstractos y distribuidos. Esto es coherente con la literatura: las capas iniciales capturan características espaciales locales, y las capas finales integran información de alto nivel.
+
+El análisis por cabezas resulta especialmente revelador. Como se puede ver en la Figura \ref{fig:volcano_heads}, cada cabeza specializa su atención en aspectos distintos de la imagen: en el volcán, por ejemplo, una cabeza se centra en el pico, otra en el contorno y otra en la zona del cielo. Esta specialización es una de las propiedades más llamativas de los mecanismos de atención multi-cabeza.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{images/volcano_heads_layer2.png}
+  \caption{Las 12 cabezas de atención en la capa 2 sobre una imagen de volcán. Se aprecia claramente la especialización de cada cabeza: algunas se centran en el pico, otras en los bordes o el cielo, y otras parecen no atender a nada relevante en esta imagen concreta.}
+  \label{fig:volcano_heads}
+\end{figure}
+
+Algunas cabezas parecen no atender a ninguna región concreta (Figura \ref{fig:attending_nothing}). La interpretación más razonable es que esas cabezas están especializadas en características que no aparecen en la imagen en cuestión: si una cabeza ha aprendido a detectar, por ejemplo, agua o texto, en una imagen que no los contiene simplemente no tiene nada relevante a lo que atender.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{images/zebra1_heads_layer8-attending-nothing.png}
+  \caption{Ejemplo de cabezas que no atienden a ninguna región relevante en la capa 8 sobre una imagen de cebra. Estas cabezas probablemente están especializadas en características ausentes en esta imagen.}
+  \label{fig:attending_nothing}
+\end{figure}
+
+\subsubsection{Visualización interactiva y atención por parche}
+
+Usando la visualización interactiva, se puede explorar cómo cada parche distribuye su atención a lo largo de las capas. En las capas iniciales, cada parche atiende principalmente a sus vecinos más cercanos, lo que indica que el modelo aprende primero relaciones espaciales locales. A medida que avanzan las capas, la atención se va expandiendo hacia regiones más amplias, integrando progresivamente información de distintas partes de la imagen, un comportamiento típico de los transformers.
+
+Comparando el rollout por parche con el del token \texttt{CLS}, no se aprecian diferencias drásticas en las zonas destacadas, lo que sugiere que la información de atención no está concentrada únicamente en el token de clasificación, sino que se distribuye de forma coherente entre todos los tokens.
+
+\subsubsection{Curiosidades}
+
+Algunos casos concretos resultan especialmente interesantes.
+
+En las imágenes del volcán con reflejo en el agua (Figura \ref{fig:volcano_reflection}), los parches que corresponden al reflejo atienden inicialmente a sí mismos y a su entorno inmediato. Sin embargo, a medida que avanzan las capas, su atención se desplaza progresivamente hacia el volcán real, lo que demuestra que el modelo ha aprendido a relacionar el reflejo con el objeto que lo produce. Este tipo de razonamiento visual implícito es difícil de conseguir con arquitecturas más simples, y resulta bastante llamativo.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_1.png}
+    \caption{Capa 1}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_3.png}
+    \caption{Capa 3}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_5.png}
+    \caption{Capa 5}
+  \end{subfigure}
+
+  \vspace{0.3cm}
+
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_6.png}
+    \caption{Capa 6}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_10.png}
+    \caption{Capa 10}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/volcano_reflection_layer_11.png}
+    \caption{Capa 11}
+  \end{subfigure}
+  \caption{Evolución de la atención del parche correspondiente al reflejo del volcán en el agua a lo largo de las capas. En las primeras capas atiende a su entorno inmediato; en las capas más profundas, desplaza su atención hacia el volcán real.}
+  \label{fig:volcano_reflection}
+\end{figure}
+
+En la imagen de la mariposa monarca, los parches correspondientes a la flor sobre la que descansa la mariposa atienden entre sí, llegando casi a segmentar la flor del resto de la imagen (Figura \ref{fig:butterfly_flower}). Un efecto similar ocurre con la cebra que aparece en el fondo de una de las imágenes de cebra (Figura \ref{fig:zebra_back}): sus parches de fondo se reconocen entre sí, o con la zona de la taza de café en la imagen de la cafetera espresso.
+
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_1.png}
+    \caption{Capa 1}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_2.png}
+    \caption{Capa 2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_3.png}
+    \caption{Capa 3}
+  \end{subfigure}
+
+  \vspace{0.3cm}
+
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_5.png}
+    \caption{Capa 5}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_9.png}
+    \caption{Capa 9}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/zebra_back_layer_1.png}
+    \caption{Cebra de fondo, capa 1}
+  \end{subfigure}
+  \caption{Izquierda y centro: evolución de la atención del parche de la flor en la imagen de la mariposa monarca. Los parches de la flor se atienden entre sí, casi segmentándola. Derecha: comportamiento análogo con la cebra que aparece en el fondo de otra imagen.}
+  \label{fig:butterfly_flower}
+\end{figure}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.5\textwidth]{images/zebra_back_layer_1.png}
+  \caption{Atención del parche correspondiente a la cebra de fondo en la capa 1. Sus parches se reconocen entre sí, diferenciándose del resto de la escena.}
+  \label{fig:zebra_back}
+\end{figure}
+
+Estos resultados, en conjunto, ponen de manifiesto la capacidad de los modelos ViT para aprender representaciones espaciales ricas y coherentes sin supervisión explícita sobre la estructura de la imagen, simplemente a partir del mecanismo de atención y el entrenamiento supervisado por clasificación.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %                                                                             %
 %                                BIBLIOGRAFIA                                 %
