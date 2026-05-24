@@ -186,7 +186,7 @@ Esto nos dejaba con valores 'bajos' de accuracy, de un 93\%, por lo que se han i
   \item Usar data augmentation con técnicas de RandomRotation, RandomHorizontalFlip, RandomGrayscale, RandomResizedCrop, RandomErasing, GaussianNoise y ColorJitter
 \end{itemize}
 
-La mayoría de estas han terminando mejorando el accuracy, aunque algunas como el ColorJitter o el RandomResizedCrop solo ralentizaban el entrenamiento, sin llegar a dar una mejora al modelo.
+La mayoría de estas han terminado mejorando el accuracy, aunque algunas como el ColorJitter o el RandomResizedCrop solo ralentizaban el entrenamiento, sin llegar a dar una mejora al modelo.
 
 Con esto, se ha llegado a superar el $96.0\% - 96.5\%$ de accuracy en validación, pero aún estaba lejos del objetivo de 98\%. En el paper, se usan varias versiones de la misma CNN pero entrenadas con seeds y usadas como un ensemble. Sin embargo, se ha querido implementar una mejora más al proceso antes de llegar a esto.
 
@@ -197,15 +197,15 @@ Con esto, se ha llegado a superar el $96.0\% - 96.5\%$ de accuracy en validació
   \label{fig:gender_samples}
 \end{figure}
 
-Si nos fijamos, a parte de no saber si Michael Jackson es hombre o mujer, el modelo también tiene problemas con personas con gafas, gorras y en general con aquellas a las que no se les ve el pelo (aun que no todos son así claro). Esto nos lleva a pensar que depende mucho de estas características para hacer la predicción, y que si no las tiene, el modelo se confunde.
+Si nos fijamos, aparte de no saber si Michael Jackson es hombre o mujer, el modelo también tiene problemas con personas con gafas, gorras y en general con aquellas a las que no se les ve el pelo (aunque no todos son así, claro). Esto nos lleva a pensar que depende mucho de estas características para hacer la predicción, y que si no las tiene, el modelo se confunde.
 
 Por eso, se ha implementado un \textbf{aumento de datos específico} que, a partir del concepto del RandomErasing, pretende centrarse en zonas específicas de la imagen, en concreto en la zona del pelo. Con este aumento, se consigue pasar de un 96.5\% a un 97.1\% de accuracy en validación. 
 
-Aún así, no se ha conseguido llegar al 98\% de accuracy, por lo que ha decidido probar a ajustar el umbral de predicción y hacer inferencia usando cada imagen y su versión invertida horizontalmente. Con esto alcanzamos un 97.3\% de accuracy, solo usando este modelo.
+Aún así, no se ha conseguido llegar al 98\% de accuracy, por lo que se ha decidido probar a ajustar el umbral de predicción y hacer inferencia usando cada imagen y su versión invertida horizontalmente. Con esto alcanzamos un 97.3\% de accuracy, solo usando este modelo.
 
 Luego, siguiendo las indicaciones del paper, se ha implementado un ensemble de 3 modelos con diferentes seeds, AdamW, label smoothing y los data augmentation que han demostrado funcionar incluyendo la personalizada, subiendo un pelín el accuracy a 97.5\%. 
 
-Al ver que se llegaba a un tope, se ha cambiado directamente la arquitectura del modelo. Visto que el paper llega a un tope con el setup actual, por lo que se ha usado una ResNet con 3 skip connections y dos convoluciones por bloque.
+Al ver que se llegaba a un tope, se ha cambiado directamente la arquitectura del modelo. Visto que el paper llega a un tope con el setup actual, se ha usado una ResNet con 3 skip connections y dos convoluciones por bloque.
 
 Con esta nueva arquitectura, se ha conseguido llegar a un 98.4\% de accuracy en validación, y con el ensemble de 3 modelos, se ha llegado a un 98.6\%, superando el objetivo marcado. Tras algunas pruebas se ha superado esta marca añadiendo otra capa de convolución a cada bloque, llegando a un 98.6\% con un solo modelo y a un 98.8\% con un ensemble, siendo este el mejor resultado obtenido.
 
@@ -243,7 +243,7 @@ Como vemos, el tamaño del modelo no ha tenido tanta importancia a la hora de co
 
 
 \section{Ejercicio 2: Car Model Identification}
-Para esta tarea, partimos usando el código del ejercicio anterior, toda la pipeline de entrenamiento y data augmentation se ha mantenido (menos el aumento de datos personalizado), aunque se han ajustado algunos hiperparámetros como el learning rate.
+Para esta tarea, partimos usando el código del ejercicio anterior, toda la pipeline de entrenamiento y data augmentation se han mantenido (menos el aumento de datos personalizado), aunque se han ajustado algunos hiperparámetros como el learning rate.
 
 Ahora la diferencia será que no solo usamos una CNN, sino dos y ya entrenadas. Usaremos una ResNet-50 y una VGG-16 preentrenadas en ImageNet tanto para crear una red bilineal con ambas como para solo usar una y crear redes siamesas.
 
@@ -260,7 +260,7 @@ Finalmente, este vector tendrá un tamaño equivalente a multiplicar los canales
 Para hacer efectivo el entrenamiento de esta red bilineal, se congelan las dos redes convolucionales, y se entrena solo la capa lineal final hasta que se estabilice. Luego, se reduce el learning rate en dos órdenes de magnitud y se descongelan las CNNs para hacer un fine-tuning de toda la red.
 
 \subsection{Técnicas probadas}
-Con el mismo proceso de entrenamiento que el ejercicio anterior, no se ha tenido que cambiar apenas nada y se han podido probar los tres posibles enfoques para esta tarea sin mucha dificultad: Una Bilinear con ResNet-50 y VGG-16, una red siamesa con ResNet-50 y otra red siamesa con VGG-16. 
+Con el mismo proceso de entrenamiento que el ejercicio anterior, no se ha tenido que cambiar apenas nada y se han podido probar los tres posibles enfoques para esta tarea sin mucha dificultad: Una red bilineal con ResNet-50 y VGG-16, una red siamesa con ResNet-50 y otra red siamesa con VGG-16. 
 
 \textbf{Un detalle importante:} para hacer las redes siamesas no se cargan dos modelos idénticos en memoria (lo cual sería un desperdicio enorme de recursos). Simplemente se carga la red una vez, y para sacar las características se hace el producto externo de su salida consigo misma. Luego el backpropagation se encarga de actualizar los pesos de la red para que aprenda a sacar características que sean útiles para esta tarea.
 
@@ -323,7 +323,7 @@ Para este ejercicio se han usado dos modelos ViT (\textit{Vision Transformer}): 
 
 La forma en que se extrae la atención difiere entre modelos. Con el modelo de Google, \texttt{ViTModel} expone directamente las matrices de atención de cada capa si se pasa \texttt{output\_attentions=True}. Con el modelo de \texttt{timm}, esto no está disponible directamente, por lo que se ha registrado un \textit{forward hook} sobre las capas \texttt{attn.qkv}, reconstruyendo manualmente la atención a partir de los tensores $Q$, $K$ y $V$. A partir de ahí, una vez extraídas las atenciones, el pipeline de visualización es idéntico para ambos modelos.
 
-La extracción se ha implementado a mano, luego con ayuda de Claude,tres tipos de visualización:
+La extracción se ha implementado a mano. Con ayuda de Claude, tres tipos de visualización:
 
 \begin{itemize}
   \item \textbf{Atención por capa:} para cada capa del modelo, se agrega la atención del token \texttt{CLS} sobre todos los parches, usando la media o el máximo entre las 12 cabezas. Se proyecta el vector de 196 valores resultante a una rejilla de $14 \times 14$ y se interpola bicúbicamente a $224 \times 224$ para una visualización más suave, superponiéndolo sobre la imagen original.
@@ -356,12 +356,12 @@ Ambos modelos muestran un comportamiento prácticamente idéntico en cuanto a la
 
 \begin{figure}[H]
   \centering
-  \begin{subfigure}[b]{0.75\textwidth}
+  \begin{subfigure}[b]{0.85\textwidth}
     \includegraphics[width=\textwidth]{images/guitar_google.png}
     \caption{Modelo Google}
   \end{subfigure}
   \vfill
-  \begin{subfigure}[b]{0.75\textwidth}
+  \begin{subfigure}[b]{0.85\textwidth}
     \includegraphics[width=\textwidth]{images/guitar_timm.png}
     \caption{Modelo timm}
   \end{subfigure}
@@ -371,7 +371,7 @@ Ambos modelos muestran un comportamiento prácticamente idéntico en cuanto a la
 
 \subsubsection{Attention rollout: zonas relevantes por clase}
 
-Con el rollout se aprecia con claridad que el modelo no atiende la imagen de forma uniforme, sino que concentra la atención en las partes semánticamente relevantes para cada clase. En el autobús escolar se destacan las ruedas y la carrocería, en el volcán la boca, en la mariposa las alas, en la guitarra el agujero de la caja de resonancia... Un caso especialmente curioso es el del coral cerebro: la atención se centra en el fondo de la imagen, lo cual tiene sentido dado que el fondo acuático es un indicador contextual muy fuerte de que se trata de un organismo marino.
+Con el rollout se aprecia con claridad que el modelo no atiende a la imagen de forma uniforme, sino que concentra la atención en las partes semánticamente relevantes para cada clase. En el autobús escolar se destacan las ruedas y la carrocería, en el volcán la boca, en la mariposa las alas, en la guitarra el agujero de la caja de resonancia... Un caso especialmente curioso es el del coral cerebro: la atención se centra en el fondo de la imagen, lo cual tiene sentido dado que el fondo acuático es un indicador contextual muy fuerte de que se trata de un organismo marino.
 
 \begin{figure}[H]
   \centering
@@ -390,28 +390,66 @@ Con el rollout se aprecia con claridad que el modelo no atiende la imagen de for
     \caption{Coral rollout}
   \end{subfigure}
   \caption{Atención del token \texttt{CLS} en la capa 2 para distintas clases. Se puede observar cómo el modelo se centra en las partes más relevantes de cada imagen para su clasificación.}
-  \label{fig:layer2_examples}
+  \label{fig:rollout_examples}
 \end{figure}
 
 \subsubsection{Análisis por capas y cabezas}
 
 Al visualizar la atención capa a capa, se observa que la capa 2 es consistentemente la que produce mapas más interpretables y focalizados sobre el objeto principal (Figura \ref{fig:layer2_examples}), mientras que las capas más profundas tienden a mostrar patrones más abstractos y distribuidos. Esto es coherente con la literatura: las capas iniciales capturan características espaciales locales, y las capas finales integran información de alto nivel.
+\begin{figure}[H]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/bus1_layer2.png}
+    \caption{Autobús escolar Layer 2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/bus1_layer8.png}
+    \caption{Autobús escolar Layer 8}
+  \end{subfigure}
 
-El análisis por cabezas resulta especialmente revelador. Como se puede ver en la Figura \ref{fig:volcano_heads}, cada cabeza specializa su atención en aspectos distintos de la imagen: en el volcán, por ejemplo, una cabeza se centra en el pico, otra en el contorno y otra en la zona del cielo. Esta specialización es una de las propiedades más llamativas de los mecanismos de atención multi-cabeza.
+  \vfill
+
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/daisy1_layer2.png}
+    \caption{Daisy Layer 2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/daisy1_layer8.png}
+    \caption{Daisy Layer 8}
+  \end{subfigure}
+
+  \vfill
+
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/peackock_layer2.png}
+    \caption{Pavo real Layer 2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \includegraphics[width=\textwidth]{images/peackock_layer8.png}
+    \caption{Pavo real Layer 8}
+  \end{subfigure}
+  \caption{Atención del token \texttt{CLS} en las capas 2 y 8 para distintas clases. La capa 2 produce mapas focalizados y nítidos; en la capa 8 la atención es más abstracta y distribuida.}
+  \label{fig:layer2_examples}
+\end{figure}
+
+El análisis por cabezas resulta especialmente revelador. Como se puede ver en la Figura \ref{fig:volcano_heads}, cada cabeza especializa su atención en aspectos distintos de la imagen: en el volcán, por ejemplo, una cabeza se centra en el pico, otra en el contorno y otra en la zona de las plantas. Esta especialización es una de las propiedades más llamativas de los mecanismos de atención multi-cabeza.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{images/volcano_heads_layer2.png}
-  \caption{Las 12 cabezas de atención en la capa 2 sobre una imagen de volcán. Se aprecia claramente la especialización de cada cabeza: algunas se centran en el pico, otras en los bordes o el cielo, y otras parecen no atender a nada relevante en esta imagen concreta.}
+  \caption{Las 12 cabezas de atención en la capa 2 sobre una imagen de volcán.}
   \label{fig:volcano_heads}
 \end{figure}
 
-Algunas cabezas parecen no atender a ninguna región concreta (Figura \ref{fig:attending_nothing}). La interpretación más razonable es que esas cabezas están especializadas en características que no aparecen en la imagen en cuestión: si una cabeza ha aprendido a detectar, por ejemplo, agua o texto, en una imagen que no los contiene simplemente no tiene nada relevante a lo que atender.
+Algunas cabezas parecen no atender a ninguna región concreta (Figura \ref{fig:volcano_heads}). La interpretación más razonable es que esas cabezas están especializadas en características que no aparecen en la imagen en cuestión: si una cabeza ha aprendido a detectar, por ejemplo, agua o texto, en una imagen que no los contiene simplemente no tiene nada relevante a lo que atender. Esto además pasa con más frecuencia en las capas más profundas, lo que refuerza la idea de que estas capas capturan características más abstractas y de alto nivel, que pueden no estar presentes en todas las imágenes (Figura \ref{fig:attending_nothing} capa 8 vs capa 2 del volcán).
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=\textwidth]{images/zebra1_heads_layer8-attending-nothing.png}
-  \caption{Ejemplo de cabezas que no atienden a ninguna región relevante en la capa 8 sobre una imagen de cebra. Estas cabezas probablemente están especializadas en características ausentes en esta imagen.}
+  \caption{Ejemplo de cabezas que no atienden a ninguna región relevante, capa 8.}
   \label{fig:attending_nothing}
 \end{figure}
 
@@ -421,11 +459,7 @@ Usando la visualización interactiva, se puede explorar cómo cada parche distri
 
 Comparando el rollout por parche con el del token \texttt{CLS}, no se aprecian diferencias drásticas en las zonas destacadas, lo que sugiere que la información de atención no está concentrada únicamente en el token de clasificación, sino que se distribuye de forma coherente entre todos los tokens.
 
-\subsubsection{Curiosidades}
-
-Algunos casos concretos resultan especialmente interesantes.
-
-En las imágenes del volcán con reflejo en el agua (Figura \ref{fig:volcano_reflection}), los parches que corresponden al reflejo atienden inicialmente a sí mismos y a su entorno inmediato. Sin embargo, a medida que avanzan las capas, su atención se desplaza progresivamente hacia el volcán real, lo que demuestra que el modelo ha aprendido a relacionar el reflejo con el objeto que lo produce. Este tipo de razonamiento visual implícito es difícil de conseguir con arquitecturas más simples, y resulta bastante llamativo.
+Algunos casos concretos resultan especialmente interesantes. En las imágenes del volcán con reflejo en el agua (Figura \ref{fig:volcano_reflection}), los parches que corresponden al reflejo atienden inicialmente a sí mismos y a su entorno inmediato. Sin embargo, a medida que avanzan las capas, su atención se desplaza progresivamente hacia el volcán real, lo que demuestra que el modelo ha aprendido a relacionar el reflejo con el objeto que lo produce. Este tipo de razonamiento visual implícito es difícil de conseguir con arquitecturas más simples, y resulta bastante llamativo.
 
 \begin{figure}[H]
   \centering
@@ -460,54 +494,47 @@ En las imágenes del volcán con reflejo en el agua (Figura \ref{fig:volcano_ref
     \includegraphics[width=\textwidth]{images/volcano_reflection_layer_11.png}
     \caption{Capa 11}
   \end{subfigure}
-  \caption{Evolución de la atención del parche correspondiente al reflejo del volcán en el agua a lo largo de las capas. En las primeras capas atiende a su entorno inmediato; en las capas más profundas, desplaza su atención hacia el volcán real.}
+  \caption{Evolución de la atención del parche correspondiente al reflejo del volcán a lo largo de las capas.}
   \label{fig:volcano_reflection}
 \end{figure}
 
-En la imagen de la mariposa monarca, los parches correspondientes a la flor sobre la que descansa la mariposa atienden entre sí, llegando casi a segmentar la flor del resto de la imagen (Figura \ref{fig:butterfly_flower}). Un efecto similar ocurre con la cebra que aparece en el fondo de una de las imágenes de cebra (Figura \ref{fig:zebra_back}): sus parches de fondo se reconocen entre sí, o con la zona de la taza de café en la imagen de la cafetera espresso.
+En la imagen de la mariposa monarca, los parches correspondientes a la flor sobre la que descansa la mariposa atienden entre sí, llegando casi a segmentar la flor del resto de la imagen (Figura \ref{fig:butterfly_flower}). Un efecto similar ocurre con la cebra que aparece en el fondo de una de las imágenes de cebra: sus parches de fondo se reconocen entre sí, o con la zona de la taza de café en la imagen de la cafetera espresso.
 
 \begin{figure}[H]
   \centering
   \begin{subfigure}[b]{0.30\textwidth}
     \includegraphics[width=\textwidth]{images/butterfly_flower_layer_1.png}
-    \caption{Capa 1}
+    \caption{Flor, capa 1}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.30\textwidth}
-    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_2.png}
-    \caption{Capa 2}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_5.png}
+    \caption{Flor, capa 5}
   \end{subfigure}
   \hfill
   \begin{subfigure}[b]{0.30\textwidth}
-    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_3.png}
-    \caption{Capa 3}
+    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_9.png}
+    \caption{Flor, capa 9}
   \end{subfigure}
 
   \vspace{0.3cm}
 
   \begin{subfigure}[b]{0.30\textwidth}
-    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_5.png}
-    \caption{Capa 5}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.30\textwidth}
-    \includegraphics[width=\textwidth]{images/butterfly_flower_layer_9.png}
-    \caption{Capa 9}
-  \end{subfigure}
-  \hfill
-  \begin{subfigure}[b]{0.30\textwidth}
     \includegraphics[width=\textwidth]{images/zebra_back_layer_1.png}
     \caption{Cebra de fondo, capa 1}
   \end{subfigure}
-  \caption{Izquierda y centro: evolución de la atención del parche de la flor en la imagen de la mariposa monarca. Los parches de la flor se atienden entre sí, casi segmentándola. Derecha: comportamiento análogo con la cebra que aparece en el fondo de otra imagen.}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/zebra_back_layer_2.png}
+    \caption{Cebra de fondo, capa 2}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.30\textwidth}
+    \includegraphics[width=\textwidth]{images/zebra_back_layer_3.png}
+    \caption{Cebra de fondo, capa 3}
+  \end{subfigure}
+  \caption{Evolución de la atención del parche de la flor en la imagen de la mariposa monarca y con la cebra que aparece en el fondo de otra imagen.}
   \label{fig:butterfly_flower}
-\end{figure}
-
-\begin{figure}[H]
-  \centering
-  \includegraphics[width=0.5\textwidth]{images/zebra_back_layer_1.png}
-  \caption{Atención del parche correspondiente a la cebra de fondo en la capa 1. Sus parches se reconocen entre sí, diferenciándose del resto de la escena.}
-  \label{fig:zebra_back}
 \end{figure}
 
 Estos resultados, en conjunto, ponen de manifiesto la capacidad de los modelos ViT para aprender representaciones espaciales ricas y coherentes sin supervisión explícita sobre la estructura de la imagen, simplemente a partir del mecanismo de atención y el entrenamiento supervisado por clasificación.
